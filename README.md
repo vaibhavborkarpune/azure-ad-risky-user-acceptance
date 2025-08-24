@@ -1,0 +1,1 @@
+# azure-ad-risky-user-acceptance
