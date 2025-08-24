@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure AD Risky User Incident Acceptance</title>
+    <style>
+        :root {
+            --primary: #0078d4;
+            --secondary: #505a71;
+            --success: #107c10;
+            --danger: #d13438;
+            --warning: #ffaa44;
+            --light: #f8f9fa;
+            --dark: #323130;
+            --gray: #8a8886;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 15px 0;
+            margin-bottom: 30px;
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-open {
+            background-color: var(--danger);
+        }
+        
+        .status-accepted {
+            background-color: var(--success);
+        }
+        
+        .status-closed {
+            background-color: var(--gray);
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .incident-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .incident-item {
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.2s ease;
+        }
+        
+        .incident-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .incident-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .incident-detail {
+            margin-bottom: 8px;
+            display: flex;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            min-width: 120px;
+            color: var(--secondary);
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #106ebe;
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #0c6b0c;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #b02a2e;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background-color: #dff6dd;
+            color: #107c10;
+            border: 1px solid #107c10;
+        }
+        
+        .alert-danger {
+            background-color: #fde7e9;
+            color: #d13438;
+            border: 1px solid #d13438;
+        }
+        
+        .alert-info {
+            background-color: #deecf9;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-item label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        select, input {
+            padding: 8px 12px;
+            border: 1px solid #e1e5e9;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 120, 212, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray);
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #e1e5e9;
+        }
+        
+        @media (max-width: 768px) {
+            .incident-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-bar {
+                flex-direction: column;
+            }
+            
+            select, input {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">AAD</div>
+                    <h1>Azure AD Risky User Incident Response</h1>
+                </div>
+                <div id="engineerInfo"></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="alertArea"></div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2>Open Incidents</h2>
+                <div class="filter-bar">
+                    <div class="filter-item">
+                        <label for="riskFilter">Risk Level</label>
+                        <select id="riskFilter">
+                            <option value="all">All Levels</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="searchUser">Search User</label>
+                        <input type="text" id="searchUser" placeholder="Enter user email">
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="incidentList" class="incident-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Accept Incident</h2>
+            </div>
+            <div class="card-body">
+                <div id="acceptanceForm">
+                    <p>If you arrived here via an acceptance link, the incident details will appear below.</p>
+                    <div id="targetIncident"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Update these values with your actual endpoints
+        const config = {
+            sharepointSite: "https://yourtenant.sharepoint.com/sites/security",
+            riskyUsersList: "Risky User Cases",
+            acceptFlowUrl: "https://prod-xx.westus.logic.azure.com:443/workflows/your-workflow-id", // Your Accept Incident flow URL
+            graphApiUrl: "https://graph.microsoft.com/v1.0"
+        };
+
+        // DOM elements
+        const alertArea = document.getElementById('alertArea');
+        const incidentList = document.getElementById('incidentList');
+        const targetIncident = document.getElementById('targetIncident');
+        const engineerInfo = document.getElementById('engineerInfo');
+        const riskFilter = document.getElementById('riskFilter');
+        const searchUser = document.getElementById('searchUser');
+
+        // State
+        let incidents = [];
+        let filteredIncidents = [];
+        let currentUser = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if URL has parameters for direct acceptance
+            const urlParams = new URLSearchParams(window.location.search);
+            const userEmail = urlParams.get('user');
+            
+            // Get engineer info (in a real scenario, this would come from authentication)
+            currentUser = {
+                name: "Security Engineer",
+                email: "engineer@yourcompany.com"
+            };
+            
+            engineerInfo.innerHTML = `Logged in as: <strong>${currentUser.name}</strong> (${currentUser.email})`;
+            
+            // Load incidents from SharePoint
+            loadIncidents();
+            
+            // If there's a user parameter, show the acceptance UI
+            if (userEmail) {
+                showIncidentAcceptance(userEmail);
+            }
+            
+            // Set up event listeners
+            riskFilter.addEventListener('change', filterIncidents);
+            searchUser.addEventListener('input', filterIncidents);
+        });
+
+        // Function to load incidents from SharePoint
+        async function loadIncidents() {
+            try {
+                // In a real implementation, you would call your API to get SharePoint data
+                // For demonstration, we're using mock data
+                const mockIncidents = [
+                    {
+                        id: 1,
+                        title: "Suspicious email activity",
+                        userEmail: "user1@company.com",
+                        riskLevel: "high",
+                        detectedDate: "2023-08-17T10:30:00Z",
+                        assignedTo: "",
+                        processed: false
+                    },
+                    {
+                        id: 2,
+                        title: "Impossible travel activity",
+                        userEmail: "user2@company.com",
+                        riskLevel: "medium",
+                        detectedDate: "2023-08-17T09:15:00Z",
+                        assignedTo: "",
+                        processed: false
+                    },
+                    {
+                        id: 3,
+                        title: "Unfamiliar sign-in properties",
+                        userEmail: "user3@company.com",
+                        riskLevel: "low",
+                        detectedDate: "2023-08-16T16:45:00Z",
+                        assignedTo: "engineer2@company.com",
+                        processed: false
+                    }
+                ];
+                
+                incidents = mockIncidents;
+                filteredIncidents = [...incidents];
+                renderIncidents();
+                
+            } catch (error) {
+                showAlert('Error loading incidents: ' + error.message, 'danger');
+            }
+        }
+
+        // Function to render incidents
+        function renderIncidents() {
+            if (filteredIncidents.length === 0) {
+                incidentList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <h3>No open incidents</h3>
+                        <p>All risky user incidents have been processed.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            incidentList.innerHTML = filteredIncidents.map(incident => `
+                <div class="incident-item">
+                    <div class="incident-title">${incident.title}</div>
+                    <div class="incident-detail">
+                        <span class="detail-label">User:</span>
+                        <span>${incident.userEmail}</span>
+                    </div>
+                    <div class="incident-detail">
+                        <span class="detail-label">Risk Level:</span>
+                        <span class="status-${incident.riskLevel}">${incident.riskLevel.toUpperCase()}</span>
+                    </div>
+                    <div class="incident-detail">
+                        <span class="detail-label">Detected:</span>
+                        <span>${formatDate(incident.detectedDate)}</span>
+                    </div>
+                    <div class="incident-detail">
+                        <span class="detail-label">Status:</span>
+                        <span>
+                            <span class="status-indicator ${incident.assignedTo ? 'status-accepted' : 'status-open'}"></span>
+                            ${incident.assignedTo ? 'Assigned' : 'Unassigned'}
+                        </span>
+                    </div>
+                    <div class="incident-detail">
+                        <span class="detail-label">Assigned To:</span>
+                        <span>${incident.assignedTo || 'Not assigned'}</span>
+                    </div>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button class="btn btn-primary" onclick="showIncidentAcceptance('${incident.userEmail}')">
+                            Accept Incident
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Function to filter incidents based on selected criteria
+        function filterIncidents() {
+            const riskValue = riskFilter.value;
+            const searchValue = searchUser.value.toLowerCase();
+            
+            filteredIncidents = incidents.filter(incident => {
+                const matchesRisk = riskValue === 'all' || incident.riskLevel === riskValue;
+                const matchesSearch = incident.userEmail.toLowerCase().includes(searchValue) || 
+                                     incident.title.toLowerCase().includes(searchValue);
+                return matchesRisk && matchesSearch;
+            });
+            
+            renderIncidents();
+        }
+
+        // Function to show incident acceptance UI
+        function showIncidentAcceptance(userEmail) {
+            const incident = incidents.find(i => i.userEmail === userEmail);
+            
+            if (!incident) {
+                targetIncident.innerHTML = `
+                    <div class="alert alert-danger">
+                        Incident for user ${userEmail} not found. It may have already been processed.
+                    </div>
+                `;
+                return;
+            }
+            
+            if (incident.assignedTo && incident.assignedTo !== currentUser.email) {
+                targetIncident.innerHTML = `
+                    <div class="alert alert-danger">
+                        This incident has already been assigned to ${incident.assignedTo}.
+                    </div>
+                `;
+                return;
+            }
+            
+            targetIncident.innerHTML = `
+                <div class="alert alert-info">
+                    You are about to accept the following incident:
+                </div>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                    <div><strong>Title:</strong> ${incident.title}</div>
+                    <div><strong>User:</strong> ${incident.userEmail}</div>
+                    <div><strong>Risk Level:</strong> ${incident.riskLevel.toUpperCase()}</div>
+                    <div><strong>Detected:</strong> ${formatDate(incident.detectedDate)}</div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn btn-success" onclick="acceptIncident('${incident.userEmail}')">
+                        Confirm Acceptance
+                    </button>
+                </div>
+            `;
+            
+            // Scroll to the acceptance form
+            targetIncident.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Function to accept an incident
+        async function acceptIncident(userEmail) {
+            try {
+                showAlert('Accepting incident...', 'info');
+                
+                // In a real implementation, you would call your Power Automate flow
+                // For demonstration, we'll simulate the API call
+                const response = await simulateAcceptIncident(userEmail);
+                
+                if (response.success) {
+                    showAlert('Incident successfully accepted!', 'success');
+                    
+                    // Update the local data
+                    const incidentIndex = incidents.findIndex(i => i.userEmail === userEmail);
+                    if (incidentIndex !== -1) {
+                        incidents[incidentIndex].assignedTo = currentUser.email;
+                        filterIncidents();
+                    }
+                    
+                    targetIncident.innerHTML = `
+                        <div class="alert alert-success">
+                            You have successfully accepted the incident for ${userEmail}. 
+                            The SharePoint record has been updated.
+                        </div>
+                    `;
+                } else {
+                    throw new Error(response.message || 'Failed to accept incident');
+                }
+            } catch (error) {
+                showAlert('Error accepting incident: ' + error.message, 'danger');
+            }
+        }
+
+        // Function to simulate the Accept Incident API call
+        async function simulateAcceptIncident(userEmail) {
+            // In a real implementation, you would use fetch to call your Power Automate flow
+            /*
+            const response = await fetch(config.acceptFlowUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userEmail: userEmail })
+            });
+            
+            return await response.json();
+            */
+            
+            // Simulate API call with a delay
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({ success: true, message: 'Incident accepted' });
+                }, 1500);
+            });
+        }
+
+        // Helper function to format dates
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        // Helper function to show alerts
+        function showAlert(message, type) {
+            alertArea.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            
+            // Auto-dismiss success alerts after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    alertArea.innerHTML = '';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
